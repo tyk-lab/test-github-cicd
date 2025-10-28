@@ -72,7 +72,7 @@ int main() {
     test_divide();
     //test_square();
     
-    std::cout << std::endl;
+    std::cout << std::en8dl;
     std::cout << "测试结果: " << passed_count << "/" << test_count << " 通过" << std::endl;
     
     if (passed_count == test_count) {
