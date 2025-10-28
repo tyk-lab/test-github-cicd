@@ -1,43 +1,74 @@
+# ============================================================================
+# 工作流名称: C++ CI/CD Pipeline
+# 功能说明: 这是主要的CI/CD工作流，负责在多个平台上构建、测试和发布C++项目
+# 
+# 主要任务:
+#   1. build-and-test: 在Ubuntu/macOS/Windows上编译和测试
+#   2. code-quality: 代码质量检查（格式、规范等）
+#   3. summary: 生成执行摘要
+#   4. release: 自动创建GitHub Release并上传二进制文件
+#
+# 触发方式:
+#   - 推送到main/master分支
+#   - 创建Pull Request到main/master分支
+#   - 手动触发（在Actions页面点击"Run workflow"）
+# ============================================================================
+
 name: C++ CI/CD Pipeline
 
-# 触发条件
+# ----------------------------------------------------------------------------
+# 触发条件配置
+# ----------------------------------------------------------------------------
 on:
-  # 当推送到main分支时触发
+  # 当推送到main或master分支时自动触发
+  # 例如: git push origin main
   push:
     branches: [ main, master ]
   
-  # 当创建针对main分支的Pull Request时触发
+  # 当创建针对main/master分支的Pull Request时触发
+  # 用于在合并前验证代码质量
   pull_request:
     branches: [ main, master ]
   
   # 允许手动触发工作流
+  # 在GitHub网页 Actions → C++ CI/CD Pipeline → Run workflow 按钮
   workflow_dispatch:
 
 # 定义工作流中的任务
 jobs:
-  # 构建和测试任务
+  # ========================================================================
+  # 任务1: 构建和测试
+  # 功能: 在3个不同操作系统上编译和测试C++代码
+  # 并行执行: 3个平台同时运行，互不影响
+  # ========================================================================
   build-and-test:
-    # 任务名称
     name: Build and Test on ${{ matrix.os }}
     
-    # 使用矩阵策略在多个平台上运行
+    # 矩阵策略配置
+    # 说明: matrix允许我们用相同的步骤在不同环境下并行运行
+    # 这里配置了3个操作系统 × 1个编译类型 = 3个并行任务
     strategy:
-      fail-fast: false  # 一个平台失败不影响其他平台继续运行
+      fail-fast: false  # 重要: 即使一个平台失败，其他平台继续运行
       matrix:
+        # 操作系统列表 - GitHub提供的预配置虚拟机
         os: [ubuntu-latest, macos-latest, windows-latest]
+        
+        # 构建类型 - Release模式（优化编译）
         build_type: [Release]
+        
+        # 为每个操作系统指定编译器
         include:
           - os: ubuntu-latest
-            c_compiler: gcc
+            c_compiler: gcc          # Linux使用GCC
             cpp_compiler: g++
           - os: macos-latest
-            c_compiler: clang
+            c_compiler: clang        # macOS使用Clang
             cpp_compiler: clang++
           - os: windows-latest
-            c_compiler: cl
+            c_compiler: cl           # Windows使用MSVC
             cpp_compiler: cl
     
-    # 运行环境
+    # 指定运行环境 - 从matrix中获取操作系统
     runs-on: ${{ matrix.os }}
     
     # 任务步骤
@@ -100,6 +131,8 @@ jobs:
           fi
       
       # 步骤11: 上传构建产物
+      # 说明: 将编译好的可执行文件保存为Artifacts，供后续步骤使用或下载
+      # retention-days: 保留7天后自动删除，节省存储空间
       - name: 📦 Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -111,7 +144,11 @@ jobs:
             build/${{ matrix.build_type }}/calculator_tests*
           retention-days: 7
 
-  # 代码质量检查任务 (可选)
+  # ========================================================================
+  # 任务2: 代码质量检查
+  # 功能: 使用clang-format检查代码格式是否符合规范
+  # 运行环境: 仅在Ubuntu上运行（节省资源）
+  # ========================================================================
   code-quality:
     name: Code Quality Check
     runs-on: ubuntu-latest
@@ -127,12 +164,17 @@ jobs:
           echo "代码格式检查 (演示 - 实际项目可以配置严格检查)"
           find src tests -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror || true
 
-  # 总结任务
+  # ========================================================================
+  # 任务3: 生成执行摘要
+  # 功能: 汇总所有任务的执行结果，生成可读性强的报告
+  # 依赖: 等待 build-and-test 和 code-quality 完成后运行
+  # 特点: 无论前面任务成功或失败都会运行（if: always()）
+  # ========================================================================
   summary:
     name: CI Summary
-    needs: [build-and-test, code-quality]
+    needs: [build-and-test, code-quality]  # 依赖前两个任务
     runs-on: ubuntu-latest
-    if: always()
+    if: always()  # 即使前面任务失败也会运行
     
     steps:
       - name: 📊 Display Summary
@@ -145,49 +187,61 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "感谢您使用 GitHub Actions! 🎉" >> $GITHUB_STEP_SUMMARY
 
-  # 创建Release并上传构建产物
+  # ========================================================================
+  # 任务4: 创建Release并上传构建产物
+  # 功能: 自动打包各平台的可执行文件并创建GitHub Release
+  # 触发条件: 
+  #   1. 推送带有 v 开头的 tag (如: git tag v1.0.0)
+  #   2. 推送到 main 分支（自动创建带日期的版本）
+  # 依赖: 等待 build-and-test 和 code-quality 成功后运行
+  # ========================================================================
   release:
     name: Create Release
-    needs: [build-and-test, code-quality]
+    needs: [build-and-test, code-quality]  # 依赖前两个任务
     runs-on: ubuntu-latest
+    # 触发条件: tag以v开头 或 推送到main分支
     if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     permissions:
-      contents: write
+      contents: write  # 需要写权限来创建Release
     
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # 获取完整的Git历史，用于生成变更日志
       
       # 下载所有平台的构建产物
+      # 说明: 从前面的build-and-test任务中下载编译好的二进制文件
       - name: 📦 Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          path: artifacts  # 下载到artifacts目录
       
       # 打包各平台的构建产物
+      # 说明: 将各平台的二进制文件打包成用户友好的压缩格式
+      #       Linux/macOS使用.tar.gz，Windows使用.zip
       - name: 📦 Package artifacts
         run: |
           cd artifacts
           
-          # 打包Linux版本
+          # 打包Linux版本 - 使用tar.gz压缩
           if [ -d "calculator-ubuntu-latest-Release" ]; then
             cd calculator-ubuntu-latest-Release
             tar -czf ../calculator-linux-x64.tar.gz calculator_app calculator_tests
             cd ..
           fi
           
-          # 打包macOS版本
+          # 打包macOS版本 - 使用tar.gz压缩
           if [ -d "calculator-macos-latest-Release" ]; then
             cd calculator-macos-latest-Release
             tar -czf ../calculator-macos-x64.tar.gz calculator_app calculator_tests
             cd ..
           fi
           
-          # 打包Windows版本
+          # 打包Windows版本 - 使用zip压缩
           if [ -d "calculator-windows-latest-Release" ]; then
             cd calculator-windows-latest-Release
+            # 尝试两种可能的路径结构
             zip -r ../calculator-windows-x64.zip calculator_app.exe calculator_tests.exe 2>/dev/null || \
             zip -r ../calculator-windows-x64.zip Release/calculator_app.exe Release/calculator_tests.exe
             cd ..
@@ -197,6 +251,9 @@ jobs:
           ls -lah artifacts/
       
       # 生成版本号和发布说明
+      # 说明: 根据触发方式决定版本号格式
+      #       tag触发: 使用tag名称 (如 v1.0.0)
+      #       push触发: 使用日期+commit (如 v2025.01.28-abc1234)
       - name: 📝 Generate version and release notes
         id: version
         run: |
@@ -210,7 +267,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Generated version: $VERSION"
           
-          # 生成发布说明
+          # 生成发布说明 - 包含使用说明和变更记录
           cat > release_notes.md << 'EOF'
           ## 🎉 自动构建版本
           
@@ -243,21 +300,23 @@ jobs:
           
           EOF
           
-          # 添加最近的提交记录
+          # 添加最近的提交记录 - 最近10条
           echo "#### 最近提交" >> release_notes.md
           git log --pretty=format:"- %s (%h)" -10 >> release_notes.md
           
           cat release_notes.md
       
       # 创建或更新Release
+      # 说明: 使用softprops/action-gh-release自动创建GitHub Release
+      #       如果同名tag已存在，会更新该Release
       - name: 🚀 Create/Update Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.version }}
           name: Release ${{ steps.version.outputs.version }}
           body_path: release_notes.md
-          draft: false
-          prerelease: false
+          draft: false          # false=立即发布，true=保存为草稿
+          prerelease: false     # false=正式版本，true=预发布版本
           files: |
             artifacts/calculator-linux-x64.tar.gz
             artifacts/calculator-macos-x64.tar.gz
@@ -265,6 +324,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
+      # 生成Release摘要 - 在GitHub Actions的Summary页面显示
       - name: 📢 Release Summary
         run: |
           echo "## 🎉 Release 已创建！" >> $GITHUB_STEP_SUMMARY

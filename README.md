@@ -7,9 +7,19 @@
 
 这是一个简单的C++项目，用于演示GitHub CI/CD工作流程。
 
-## 📥 快速下载
+## � 文档导航
+
+| 文档 | 说明 |
+|------|------|
+| [README.md](README.md) | 📖 本文件 - 项目概览和快速开始 |
+| [CICD_GUIDE.md](CICD_GUIDE.md) | 🔄 CI/CD详细教程 - 深入理解持续集成原理 |
+| [RELEASE_GUIDE.md](RELEASE_GUIDE.md) | 🚀 Release发布指南 - 自动发布机制说明 |
+| [WORKFLOWS_GUIDE.md](WORKFLOWS_GUIDE.md) | ⚙️ 工作流配置说明 - 所有工作流文件详解 |
+
+## �📥 快速下载
 
 从 [Releases](https://github.com/tyk-lab/test-github-cicd/releases/latest) 页面下载适合你操作系统的预编译版本：
+
 - 🐧 Linux (Ubuntu)
 - 🍎 macOS
 - 🪟 Windows
@@ -29,9 +39,10 @@
 │       └── ci.yml           # CI/CD工作流配置
 ├── CMakeLists.txt           # CMake构建配置
 ├── LICENSE                  # MIT许可证
-├── README.md               # 本文件
-├── CICD_GUIDE.md          # CI/CD详细教程
-└── RELEASE_GUIDE.md       # Release发布指南
+├── README.md                # 本文件 - 项目概览
+├── CICD_GUIDE.md           # CI/CD详细教程
+├── RELEASE_GUIDE.md        # Release发布指南
+└── WORKFLOWS_GUIDE.md      # 工作流配置说明
 ```
 
 ## 构建项目
