@@ -86,27 +86,7 @@ jobs:
       # 步骤9: 运行测试
       - name: 🧪 Run Tests
         working-directory: ${{github.workspace}}/build
-        run: ctest -C ${{ matrix.build_type }} --output-on-failure --verbose
-      
-      # 步骤9.5: 生成测试报告 (JUnit格式)
-      - name: 📊 Generate Test Report
-        if: always()
-        working-directory: ${{github.workspace}}/build
-        shell: bash
-        run: |
-          echo "生成测试结果摘要"
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            if [ -f "${{ matrix.build_type }}/calculator_tests.exe" ]; then
-              ./${{ matrix.build_type }}/calculator_tests.exe > test_results_${{ matrix.os }}.txt 2>&1 || true
-            elif [ -f "calculator_tests.exe" ]; then
-              ./calculator_tests.exe > test_results_${{ matrix.os }}.txt 2>&1 || true
-            fi
-          else
-            if [ -f "calculator_tests" ]; then
-              ./calculator_tests > test_results_${{ matrix.os }}.txt 2>&1 || true
-            fi
-          fi
-          echo "测试结果已保存"
+        run: ctest -C ${{ matrix.build_type }} --output-on-failure
       
       # 步骤10: 运行主程序 (演示)
       - name: 🚀 Run Application
@@ -122,7 +102,6 @@ jobs:
       # 步骤11: 上传构建产物
       - name: 📦 Upload Artifacts
         uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: calculator-${{ matrix.os }}-${{ matrix.build_type }}
           path: |
@@ -130,7 +109,6 @@ jobs:
             build/calculator_tests*
             build/${{ matrix.build_type }}/calculator_app*
             build/${{ matrix.build_type }}/calculator_tests*
-            build/test_results_*.txt
           retention-days: 7
 
   # 代码质量检查任务 (可选)
@@ -165,8 +143,137 @@ jobs:
           echo "- 构建和测试: ${{ needs.build-and-test.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- 代码质量检查: ${{ needs.code-quality.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📈 快速链接" >> $GITHUB_STEP_SUMMARY
-          echo "- [查看详细测试报告](https://tyk-lab.github.io/test-github-cicd/)" >> $GITHUB_STEP_SUMMARY
-          echo "- [下载构建产物](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "感谢您使用 GitHub Actions! 🎉" >> $GITHUB_STEP_SUMMARY
+
+  # 创建Release并上传构建产物
+  release:
+    name: Create Release
+    needs: [build-and-test, code-quality]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    permissions:
+      contents: write
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      # 下载所有平台的构建产物
+      - name: 📦 Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      # 打包各平台的构建产物
+      - name: 📦 Package artifacts
+        run: |
+          cd artifacts
+          
+          # 打包Linux版本
+          if [ -d "calculator-ubuntu-latest-Release" ]; then
+            cd calculator-ubuntu-latest-Release
+            tar -czf ../calculator-linux-x64.tar.gz calculator_app calculator_tests
+            cd ..
+          fi
+          
+          # 打包macOS版本
+          if [ -d "calculator-macos-latest-Release" ]; then
+            cd calculator-macos-latest-Release
+            tar -czf ../calculator-macos-x64.tar.gz calculator_app calculator_tests
+            cd ..
+          fi
+          
+          # 打包Windows版本
+          if [ -d "calculator-windows-latest-Release" ]; then
+            cd calculator-windows-latest-Release
+            zip -r ../calculator-windows-x64.zip calculator_app.exe calculator_tests.exe 2>/dev/null || \
+            zip -r ../calculator-windows-x64.zip Release/calculator_app.exe Release/calculator_tests.exe
+            cd ..
+          fi
+          
+          cd ..
+          ls -lah artifacts/
+      
+      # 生成版本号和发布说明
+      - name: 📝 Generate version and release notes
+        id: version
+        run: |
+          # 如果是tag触发，使用tag名；否则使用日期+commit hash
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION="v$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)"
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
+          
+          # 生成发布说明
+          cat > release_notes.md << 'EOF'
+          ## 🎉 自动构建版本
+          
+          此版本由 GitHub Actions 自动构建和发布。
+          
+          ### 📦 下载说明
+          
+          根据你的操作系统选择对应的文件：
+          
+          - **🐧 Linux**: `calculator-linux-x64.tar.gz`
+            ```bash
+            tar -xzf calculator-linux-x64.tar.gz
+            ./calculator_app
+            ```
+          
+          - **🍎 macOS**: `calculator-macos-x64.tar.gz`
+            ```bash
+            tar -xzf calculator-macos-x64.tar.gz
+            ./calculator_app
+            ```
+          
+          - **🪟 Windows**: `calculator-windows-x64.zip`
+            解压后运行 `calculator_app.exe`
+          
+          ### ✅ 测试状态
+          
+          所有平台的构建和测试均已通过！
+          
+          ### 📋 变更日志
+          
+          EOF
+          
+          # 添加最近的提交记录
+          echo "#### 最近提交" >> release_notes.md
+          git log --pretty=format:"- %s (%h)" -10 >> release_notes.md
+          
+          cat release_notes.md
+      
+      # 创建或更新Release
+      - name: 🚀 Create/Update Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/calculator-linux-x64.tar.gz
+            artifacts/calculator-macos-x64.tar.gz
+            artifacts/calculator-windows-x64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: 📢 Release Summary
+        run: |
+          echo "## 🎉 Release 已创建！" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**版本号**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**下载地址**: https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 包含的文件" >> $GITHUB_STEP_SUMMARY
+          echo "- calculator-linux-x64.tar.gz" >> $GITHUB_STEP_SUMMARY
+          echo "- calculator-macos-x64.tar.gz" >> $GITHUB_STEP_SUMMARY
+          echo "- calculator-windows-x64.zip" >> $GITHUB_STEP_SUMMARY
