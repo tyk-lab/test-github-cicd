@@ -7,14 +7,14 @@
 
 这是一个简单的C++项目，用于演示GitHub CI/CD工作流程。
 
-## � 文档导航
+## 📚 文档导航
 
 | 文档 | 说明 |
 |------|------|
 | [README.md](README.md) | 📖 本文件 - 项目概览和快速开始 |
-| [CICD_GUIDE.md](CICD_GUIDE.md) | 🔄 CI/CD详细教程 - 深入理解持续集成原理 |
-| [RELEASE_GUIDE.md](RELEASE_GUIDE.md) | 🚀 Release发布指南 - 自动发布机制说明 |
-| [WORKFLOWS_GUIDE.md](WORKFLOWS_GUIDE.md) | ⚙️ 工作流配置说明 - 所有工作流文件详解 |
+| [CICD_GUIDE.md](docs/CICD_GUIDE.md) | 🔄 CI/CD详细教程 - 深入理解持续集成原理 |
+| [RELEASE_GUIDE.md](docs/RELEASE_GUIDE.md) | 🚀 Release发布指南 - 自动发布机制说明 |
+| [WORKFLOWS_GUIDE.md](docs/WORKFLOWS_GUIDE.md) | ⚙️ 工作流配置说明 - 所有工作流文件详解 |
 
 ## �📥 快速下载
 
@@ -34,15 +34,17 @@
 │   └── calculator.cpp        # 计算器实现
 ├── tests/                    # 测试代码目录
 │   └── test_calculator.cpp  # 单元测试
+├── docs/                     # 📚 项目文档目录
+│   ├── CICD_GUIDE.md        # CI/CD详细教程
+│   ├── RELEASE_GUIDE.md     # Release发布指南
+│   └── WORKFLOWS_GUIDE.md   # 工作流配置说明
 ├── .github/                  # GitHub配置
-│   └── workflows/
-│       └── ci.yml           # CI/CD工作流配置
+│   └── workflows/           # 工作流文件
+│       ├── ci.yml          # CI/CD主工作流
+│       └── publish-report.yml  # 测试报告发布
 ├── CMakeLists.txt           # CMake构建配置
 ├── LICENSE                  # MIT许可证
-├── README.md                # 本文件 - 项目概览
-├── CICD_GUIDE.md           # CI/CD详细教程
-├── RELEASE_GUIDE.md        # Release发布指南
-└── WORKFLOWS_GUIDE.md      # 工作流配置说明
+└── README.md                # 本文件 - 项目概览
 ```
 
 ## 构建项目
@@ -111,8 +113,8 @@ CI配置支持在以下平台上构建和测试：
 
 ## 🎓 学习资源
 
-- **CI/CD概念**: 阅读 [CICD_GUIDE.md](CICD_GUIDE.md) 了解持续集成和持续部署的原理
-- **Release流程**: 阅读 [RELEASE_GUIDE.md](RELEASE_GUIDE.md) 了解自动发布机制
+- **CI/CD概念**: 阅读 [docs/CICD_GUIDE.md](docs/CICD_GUIDE.md) 了解持续集成和持续部署的原理
+- **Release流程**: 阅读 [docs/RELEASE_GUIDE.md](docs/RELEASE_GUIDE.md) 了解自动发布机制
 - **GitHub Actions**: [官方文档](https://docs.github.com/en/actions)
 - **CMake教程**: [CMake官方文档](https://cmake.org/documentation/)
 

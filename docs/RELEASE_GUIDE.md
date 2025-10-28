@@ -4,7 +4,7 @@
 
 ### 1. README状态徽章
 
-在 `README.md` 顶部添加了以下徽章：
+在 `../README.md` 顶部添加了以下徽章：
 
 - **CI/CD Pipeline**: 显示构建状态（绿色=成功，红色=失败）
 - **GitHub Release**: 显示最新版本号
