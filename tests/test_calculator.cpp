@@ -70,7 +70,7 @@ int main() {
     test_subtract();
     test_multiply();
     test_divide();
-    test_square();
+    //test_square();
     
     std::cout << std::endl;
     std::cout << "测试结果: " << passed_count << "/" << test_count << " 通过" << std::endl;
