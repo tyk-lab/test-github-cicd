@@ -1,6 +1,22 @@
-# C++ CI/CD 示例项目
+# C++ CI/CD 示例项目 🚀
+
+[![CI/CD Pipeline](https://github.com/tyk-lab/test-github-cicd/actions/workflows/ci.yml/badge.svg)](https://github.com/tyk-lab/test-github-cicd/actions/workflows/ci.yml)
+[![GitHub last commit](https://img.shields.io/github/last-commit/tyk-lab/test-github-cicd)](https://github.com/tyk-lab/test-github-cicd/commits/main)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 这是一个简单的C++项目，用于演示GitHub CI/CD工作流程。
+
+## 📊 测试报告
+
+🔗 **[查看完整测试报告页面](https://tyk-lab.github.io/test-github-cicd/)**
+
+最新CI/CD状态：
+
+| 平台 | 状态 |
+|------|------|
+| 🐧 Ubuntu | ![Status](https://github.com/tyk-lab/test-github-cicd/actions/workflows/ci.yml/badge.svg) |
+| 🍎 macOS | ![Status](https://github.com/tyk-lab/test-github-cicd/actions/workflows/ci.yml/badge.svg) |
+| 🪟 Windows | ![Status](https://github.com/tyk-lab/test-github-cicd/actions/workflows/ci.yml/badge.svg) |
 
 ## 项目结构
 

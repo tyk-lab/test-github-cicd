@@ -1,0 +1,341 @@
+name: Publish Test Report
+
+on:
+  workflow_run:
+    workflows: ["C++ CI/CD Pipeline"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  publish-report:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 📦 Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+      
+      - name: 📄 Generate HTML Report
+        run: |
+          mkdir -p public
+          
+          # 获取工作流状态
+          if [ "${{ github.event.workflow_run.conclusion }}" == "success" ]; then
+            STATUS_ICON="✅"
+            STATUS_TEXT="成功"
+            STATUS_COLOR="green"
+          else
+            STATUS_ICON="❌"
+            STATUS_TEXT="失败"
+            STATUS_COLOR="red"
+          fi
+          
+          # 生成HTML报告
+          cat > public/index.html << 'HTMLEOF'
+          <!DOCTYPE html>
+          <html lang="zh-CN">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>CI/CD 测试报告 - test-github-cicd</title>
+              <style>
+                  * {
+                      margin: 0;
+                      padding: 0;
+                      box-sizing: border-box;
+                  }
+                  
+                  body {
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      min-height: 100vh;
+                      padding: 20px;
+                  }
+                  
+                  .container {
+                      max-width: 1200px;
+                      margin: 0 auto;
+                      background: white;
+                      border-radius: 12px;
+                      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+                      overflow: hidden;
+                  }
+                  
+                  .header {
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      color: white;
+                      padding: 40px;
+                      text-align: center;
+                  }
+                  
+                  .header h1 {
+                      font-size: 2.5em;
+                      margin-bottom: 10px;
+                  }
+                  
+                  .header p {
+                      font-size: 1.1em;
+                      opacity: 0.9;
+                  }
+                  
+                  .content {
+                      padding: 40px;
+                  }
+                  
+                  .status-card {
+                      background: #f8f9fa;
+                      border-radius: 8px;
+                      padding: 30px;
+                      margin-bottom: 30px;
+                      text-align: center;
+                  }
+                  
+                  .status-icon {
+                      font-size: 4em;
+                      margin-bottom: 15px;
+                  }
+                  
+                  .status-text {
+                      font-size: 1.5em;
+                      font-weight: bold;
+                      color: STATUS_COLOR_PLACEHOLDER;
+                  }
+                  
+                  .info-grid {
+                      display: grid;
+                      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                      gap: 20px;
+                      margin-bottom: 30px;
+                  }
+                  
+                  .info-card {
+                      background: #f8f9fa;
+                      border-left: 4px solid #667eea;
+                      padding: 20px;
+                      border-radius: 4px;
+                  }
+                  
+                  .info-card h3 {
+                      color: #667eea;
+                      margin-bottom: 10px;
+                      font-size: 0.9em;
+                      text-transform: uppercase;
+                  }
+                  
+                  .info-card p {
+                      color: #333;
+                      font-size: 1.1em;
+                      font-weight: 500;
+                  }
+                  
+                  .platforms {
+                      margin-bottom: 30px;
+                  }
+                  
+                  .platforms h2 {
+                      margin-bottom: 20px;
+                      color: #333;
+                  }
+                  
+                  .platform-grid {
+                      display: grid;
+                      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                      gap: 20px;
+                  }
+                  
+                  .platform-card {
+                      background: white;
+                      border: 2px solid #e9ecef;
+                      border-radius: 8px;
+                      padding: 20px;
+                      transition: transform 0.2s, box-shadow 0.2s;
+                  }
+                  
+                  .platform-card:hover {
+                      transform: translateY(-5px);
+                      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+                  }
+                  
+                  .platform-card h3 {
+                      color: #667eea;
+                      margin-bottom: 15px;
+                      display: flex;
+                      align-items: center;
+                      gap: 10px;
+                  }
+                  
+                  .platform-card .icon {
+                      font-size: 1.5em;
+                  }
+                  
+                  .test-results {
+                      background: #f8f9fa;
+                      padding: 15px;
+                      border-radius: 4px;
+                      margin-top: 10px;
+                      font-family: 'Courier New', monospace;
+                      font-size: 0.9em;
+                      white-space: pre-wrap;
+                      max-height: 200px;
+                      overflow-y: auto;
+                  }
+                  
+                  .links {
+                      display: flex;
+                      gap: 15px;
+                      justify-content: center;
+                      flex-wrap: wrap;
+                  }
+                  
+                  .btn {
+                      display: inline-block;
+                      padding: 12px 24px;
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      color: white;
+                      text-decoration: none;
+                      border-radius: 6px;
+                      font-weight: 500;
+                      transition: transform 0.2s;
+                  }
+                  
+                  .btn:hover {
+                      transform: translateY(-2px);
+                  }
+                  
+                  .footer {
+                      text-align: center;
+                      padding: 20px;
+                      color: #666;
+                      border-top: 1px solid #e9ecef;
+                  }
+                  
+                  .success { color: #28a745; }
+                  .failed { color: #dc3545; }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <div class="header">
+                      <h1>🧪 CI/CD 测试报告</h1>
+                      <p>C++ Calculator Project - 持续集成和部署</p>
+                  </div>
+                  
+                  <div class="content">
+                      <div class="status-card">
+                          <div class="status-icon">STATUS_ICON_PLACEHOLDER</div>
+                          <div class="status-text">构建状态: STATUS_TEXT_PLACEHOLDER</div>
+                      </div>
+                      
+                      <div class="info-grid">
+                          <div class="info-card">
+                              <h3>📅 构建时间</h3>
+                              <p>BUILD_TIME_PLACEHOLDER</p>
+                          </div>
+                          <div class="info-card">
+                              <h3>🔄 工作流</h3>
+                              <p>C++ CI/CD Pipeline</p>
+                          </div>
+                          <div class="info-card">
+                              <h3>🌿 分支</h3>
+                              <p>BRANCH_PLACEHOLDER</p>
+                          </div>
+                          <div class="info-card">
+                              <h3>📝 提交</h3>
+                              <p>COMMIT_PLACEHOLDER</p>
+                          </div>
+                      </div>
+                      
+                      <div class="platforms">
+                          <h2>🖥️ 平台测试结果</h2>
+                          <div class="platform-grid">
+                              <div class="platform-card">
+                                  <h3><span class="icon">🐧</span> Ubuntu Linux</h3>
+                                  <p>✅ 编译成功</p>
+                                  <p>✅ 测试通过</p>
+                                  <div class="test-results">UBUNTU_RESULTS_PLACEHOLDER</div>
+                              </div>
+                              
+                              <div class="platform-card">
+                                  <h3><span class="icon">🍎</span> macOS</h3>
+                                  <p>✅ 编译成功</p>
+                                  <p>✅ 测试通过</p>
+                                  <div class="test-results">MACOS_RESULTS_PLACEHOLDER</div>
+                              </div>
+                              
+                              <div class="platform-card">
+                                  <h3><span class="icon">🪟</span> Windows</h3>
+                                  <p>✅ 编译成功</p>
+                                  <p>✅ 测试通过</p>
+                                  <div class="test-results">WINDOWS_RESULTS_PLACEHOLDER</div>
+                              </div>
+                          </div>
+                      </div>
+                      
+                      <div class="links">
+                          <a href="https://github.com/tyk-lab/test-github-cicd" class="btn">📂 查看源码</a>
+                          <a href="https://github.com/tyk-lab/test-github-cicd/actions" class="btn">📊 CI/CD 历史</a>
+                          <a href="WORKFLOW_URL_PLACEHOLDER" class="btn">🔗 本次构建详情</a>
+                      </div>
+                  </div>
+                  
+                  <div class="footer">
+                      <p>由 GitHub Actions 自动生成 | 最后更新: UPDATE_TIME_PLACEHOLDER</p>
+                  </div>
+              </div>
+          </body>
+          </html>
+          HTMLEOF
+          
+          # 替换占位符
+          sed -i "s/STATUS_ICON_PLACEHOLDER/${STATUS_ICON}/g" public/index.html
+          sed -i "s/STATUS_TEXT_PLACEHOLDER/${STATUS_TEXT}/g" public/index.html
+          sed -i "s/STATUS_COLOR_PLACEHOLDER/${STATUS_COLOR}/g" public/index.html
+          sed -i "s|BUILD_TIME_PLACEHOLDER|$(date '+%Y-%m-%d %H:%M:%S UTC')|g" public/index.html
+          sed -i "s/BRANCH_PLACEHOLDER/${{ github.event.workflow_run.head_branch }}/g" public/index.html
+          sed -i "s/COMMIT_PLACEHOLDER/${{ github.event.workflow_run.head_sha }}/g" public/index.html | cut -c1-7
+          sed -i "s|WORKFLOW_URL_PLACEHOLDER|https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}|g" public/index.html
+          sed -i "s|UPDATE_TIME_PLACEHOLDER|$(date '+%Y-%m-%d %H:%M:%S UTC')|g" public/index.html
+          
+          # 提取测试结果
+          if [ -d "artifacts" ]; then
+            for platform in ubuntu-latest macos-latest windows-latest; do
+              PLATFORM_UPPER=$(echo $platform | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+              
+              if [ -f "artifacts/calculator-${platform}-Release/test_results_${platform}.txt" ]; then
+                RESULT=$(cat "artifacts/calculator-${platform}-Release/test_results_${platform}.txt" | head -20)
+              else
+                RESULT="测试结果文件未找到"
+              fi
+              
+              # 转义特殊字符并替换
+              RESULT_ESCAPED=$(echo "$RESULT" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+              sed -i "s|${PLATFORM_UPPER}_RESULTS_PLACEHOLDER|${RESULT_ESCAPED}|g" public/index.html
+            done
+          else
+            sed -i "s|UBUNTU_RESULTS_PLACEHOLDER|构建产物下载中...|g" public/index.html
+            sed -i "s|MACOS_RESULTS_PLACEHOLDER|构建产物下载中...|g" public/index.html
+            sed -i "s|WINDOWS_RESULTS_PLACEHOLDER|构建产物下载中...|g" public/index.html
+          fi
+          
+          echo "HTML报告已生成"
+          ls -la public/
+      
+      - name: 🚀 Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'

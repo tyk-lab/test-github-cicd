@@ -86,7 +86,27 @@ jobs:
       # 步骤9: 运行测试
       - name: 🧪 Run Tests
         working-directory: ${{github.workspace}}/build
-        run: ctest -C ${{ matrix.build_type }} --output-on-failure
+        run: ctest -C ${{ matrix.build_type }} --output-on-failure --verbose
+      
+      # 步骤9.5: 生成测试报告 (JUnit格式)
+      - name: 📊 Generate Test Report
+        if: always()
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: |
+          echo "生成测试结果摘要"
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            if [ -f "${{ matrix.build_type }}/calculator_tests.exe" ]; then
+              ./${{ matrix.build_type }}/calculator_tests.exe > test_results_${{ matrix.os }}.txt 2>&1 || true
+            elif [ -f "calculator_tests.exe" ]; then
+              ./calculator_tests.exe > test_results_${{ matrix.os }}.txt 2>&1 || true
+            fi
+          else
+            if [ -f "calculator_tests" ]; then
+              ./calculator_tests > test_results_${{ matrix.os }}.txt 2>&1 || true
+            fi
+          fi
+          echo "测试结果已保存"
       
       # 步骤10: 运行主程序 (演示)
       - name: 🚀 Run Application
@@ -102,6 +122,7 @@ jobs:
       # 步骤11: 上传构建产物
       - name: 📦 Upload Artifacts
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: calculator-${{ matrix.os }}-${{ matrix.build_type }}
           path: |
@@ -109,6 +130,7 @@ jobs:
             build/calculator_tests*
             build/${{ matrix.build_type }}/calculator_app*
             build/${{ matrix.build_type }}/calculator_tests*
+            build/test_results_*.txt
           retention-days: 7
 
   # 代码质量检查任务 (可选)
@@ -142,5 +164,9 @@ jobs:
           echo "### 执行结果" >> $GITHUB_STEP_SUMMARY
           echo "- 构建和测试: ${{ needs.build-and-test.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- 代码质量检查: ${{ needs.code-quality.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📈 快速链接" >> $GITHUB_STEP_SUMMARY
+          echo "- [查看详细测试报告](https://tyk-lab.github.io/test-github-cicd/)" >> $GITHUB_STEP_SUMMARY
+          echo "- [下载构建产物](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}#artifacts)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "感谢您使用 GitHub Actions! 🎉" >> $GITHUB_STEP_SUMMARY
