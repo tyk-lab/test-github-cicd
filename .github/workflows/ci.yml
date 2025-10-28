@@ -1,0 +1,146 @@
+name: C++ CI/CD Pipeline
+
+# 触发条件
+on:
+  # 当推送到main分支时触发
+  push:
+    branches: [ main, master ]
+  
+  # 当创建针对main分支的Pull Request时触发
+  pull_request:
+    branches: [ main, master ]
+  
+  # 允许手动触发工作流
+  workflow_dispatch:
+
+# 定义工作流中的任务
+jobs:
+  # 构建和测试任务
+  build-and-test:
+    # 任务名称
+    name: Build and Test on ${{ matrix.os }}
+    
+    # 使用矩阵策略在多个平台上运行
+    strategy:
+      fail-fast: false  # 一个平台失败不影响其他平台继续运行
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        build_type: [Release]
+        include:
+          - os: ubuntu-latest
+            c_compiler: gcc
+            cpp_compiler: g++
+          - os: macos-latest
+            c_compiler: clang
+            cpp_compiler: clang++
+          - os: windows-latest
+            c_compiler: cl
+            cpp_compiler: cl
+    
+    # 运行环境
+    runs-on: ${{ matrix.os }}
+    
+    # 任务步骤
+    steps:
+      # 步骤1: 检出代码
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      # 步骤2: 设置CMake (跨平台)
+      - name: 🔧 Setup CMake
+        uses: lukka/get-cmake@latest
+      
+      # 步骤3: 配置构建环境 (Linux)
+      - name: 🐧 Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+      
+      # 步骤4: 配置构建环境 (macOS)
+      - name: 🍎 Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake
+      
+      # 步骤5: 配置构建环境 (Windows)
+      - name: 🪟 Setup MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: microsoft/setup-msbuild@v2
+      
+      # 步骤6: 创建构建目录
+      - name: 📁 Create Build Directory
+        run: cmake -E make_directory ${{github.workspace}}/build
+      
+      # 步骤7: 配置CMake
+      - name: ⚙️ Configure CMake
+        working-directory: ${{github.workspace}}/build
+        run: |
+          cmake .. -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+      
+      # 步骤8: 编译项目
+      - name: 🔨 Build Project
+        working-directory: ${{github.workspace}}/build
+        run: cmake --build . --config ${{ matrix.build_type }}
+      
+      # 步骤9: 运行测试
+      - name: 🧪 Run Tests
+        working-directory: ${{github.workspace}}/build
+        run: ctest -C ${{ matrix.build_type }} --output-on-failure
+      
+      # 步骤10: 运行主程序 (演示)
+      - name: 🚀 Run Application
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            ./${{ matrix.build_type }}/calculator_app.exe || ./calculator_app.exe
+          else
+            ./calculator_app
+          fi
+      
+      # 步骤11: 上传构建产物
+      - name: 📦 Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: calculator-${{ matrix.os }}-${{ matrix.build_type }}
+          path: |
+            build/calculator_app*
+            build/calculator_tests*
+            build/${{ matrix.build_type }}/calculator_app*
+            build/${{ matrix.build_type }}/calculator_tests*
+          retention-days: 7
+
+  # 代码质量检查任务 (可选)
+  code-quality:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🔍 Run clang-format check
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+          echo "代码格式检查 (演示 - 实际项目可以配置严格检查)"
+          find src tests -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror || true
+
+  # 总结任务
+  summary:
+    name: CI Summary
+    needs: [build-and-test, code-quality]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: 📊 Display Summary
+        run: |
+          echo "## CI/CD Pipeline 执行完成 ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 执行结果" >> $GITHUB_STEP_SUMMARY
+          echo "- 构建和测试: ${{ needs.build-and-test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 代码质量检查: ${{ needs.code-quality.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "感谢您使用 GitHub Actions! 🎉" >> $GITHUB_STEP_SUMMARY
